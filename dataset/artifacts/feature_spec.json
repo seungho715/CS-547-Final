@@ -1,0 +1,24 @@
+{
+  "numeric_cols": [
+    "danceability",
+    "energy",
+    "key",
+    "loudness",
+    "mode",
+    "speechiness",
+    "acousticness",
+    "instrumentalness",
+    "liveness",
+    "valence",
+    "tempo",
+    "time_signature",
+    "duration_ms",
+    "popularity",
+    "explicit"
+  ],
+  "column_weights": {
+    "tempo": 1.5,
+    "energy": 1.2
+  },
+  "similarity": "cosine via inner-product on L2-normalized vectors"
+}

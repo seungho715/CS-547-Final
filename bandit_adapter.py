@@ -15,8 +15,14 @@ class SoftmaxUCBWeightBandit:
         c_ucb: float = 0.5,
         ema_beta: float = 0.6,
         wiggle_alpha: float = 0.0,  
-        rng_seed: Optional[int] = None
+        rng_seed: int | None = None,
+        **kwargs,
     ):
+        if "epsilon" in kwargs:
+            eps = float(kwargs.pop("epsilon"))
+        if kwargs:
+            raise ValueError(f"Unknown kwargs: {kwargs}")
+        
         self.base = np.array(base_weights, dtype=np.float32)
         assert self.base.shape == (3,)
         assert 0.0 <= self.base[0] <= 1.0

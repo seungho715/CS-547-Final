@@ -22,6 +22,7 @@ class FeatureStore:
         self.lyrics_embeddings = load(p/"lyrics_embeddings.joblib")
         
         # Load pre-computed audio embeddings:
+        '''Maybe recommend from MVP? Leave audio embeddings absent and set alpha = 0. Scorer renomralizes weights per track '''
         try:
              self.audio_embeddings = load(p/"audio_embeddings.joblib")
         except:

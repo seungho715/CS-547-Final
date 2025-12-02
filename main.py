@@ -6,6 +6,13 @@ from typing import Dict, Any, List, Tuple
 import numpy as np
 import random
 
+
+from flask import Flask
+app = Flask(__name__)
+@app.route('/')
+def home():
+    return "Hello, this is the music recommendation system!"
+
 # --- Initialization ---
 fs = FeatureStore("dataset/artifacts")
 
@@ -67,6 +74,10 @@ for i, ann_score in hits:
 scored.sort(key=lambda x: x[1], reverse=True)
 top = scored[:10]
 
+
+
 for i, s, p in top:
     print(i, "score:", round(s, 4), "w_used:", tuple(round(x, 2) for x in p["w_used"]),
           "Sbpm:", round(p["Sbpm"], 3), "Slyrics:", round(p["Slyrics"], 3), "Saudio:", round(p["Saudio"], 3))
+
+

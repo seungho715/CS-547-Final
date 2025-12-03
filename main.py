@@ -7,6 +7,11 @@ from feature_store import FeatureStore
 from candidate_gen import generate_candidates
 from scorer import score_track
 from bandit_adapter import SoftmaxUCBWeightBandit
+from flask import Flask
+app = Flask(__name__)
+@app.route('/')
+def home():
+    return "Hello, this is the music recommendation system!"
 
 # Minimal config
 RANDOM_SEED = 42

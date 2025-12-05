@@ -8,8 +8,10 @@ from candidate_gen import generate_candidates
 from scorer import score_track
 from bandit_adapter import SoftmaxUCBWeightBandit
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 
 app = Flask(__name__)
+CORS(app)
 @app.route('/')
 def home():
     return "Hello, this is the music recommendation system!"

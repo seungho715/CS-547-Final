@@ -40,6 +40,139 @@ def process_data():
     }
     return jsonify(response_data)
 
+@app.route('/recommend', methods=['POST'])
+def create_model_request():
+    """
+    Initial request to set the base mood (bandit weight) and seed the query
+    with an initial song, then returns the first list of recommendations.
+    """
+    global bandit, accepted_indices, query
+    
+    if not request.is_json:
+        return jsonify({"error": "Content-Type must be application/json"}), 400
+        
+    data = request.get_json()
+    mood_value = data.get('mood')
+    song_id = data.get('songId')
+
+    if mood_value is None or song_id is None:
+        return jsonify({"error": "Missing 'mood' (number) or 'songId' (string)"}), 400
+
+    # 1. Reset Session State
+    accepted_indices.clear()
+    global per_track_penalty
+    per_track_penalty.clear()
+    
+    # 2. Adjust Bandit Base Weight based on Mood (equivalent to on_slider_change)
+    # Assuming mood_value is between 0.0 and 1.0, where 1.0 is highest weight for the first feature (e.g., lyrical content/vibe)
+    new_w = float(mood_value)
+    alpha = 0.0 # Assuming alpha remains 0.0
+    new_base = [new_w, max(0.0, 1.0 - new_w - alpha), alpha]
+    bandit.set_base(new_base) # Use set_base if available, otherwise re-create
+    # Re-create bandit if set_base is not implemented in SoftmaxUCBWeightBandit
+    # bandit = SoftmaxUCBWeightBandit(new_base, eps=0.2, rng_seed=RANDOM_SEED)
+
+    # 3. Seed Query from initial song
+    seed_from_frontend([song_id]) # seed_from_frontend is an existing function
+
+    # 4. Get Recommendations
+    arm_idx, theta = bandit.pick_arm()
+    recommendations = get_recommendations(theta)
+
+    return jsonify({"recommendations": recommendations})
+
+
+@app.route('/adjust_mood', methods=['POST'])
+def adjust_mood_request():
+    """
+    Adjusts the global bandit model's base weight (mood) and returns
+    a new list of songs based on the new weights.
+    """
+    global bandit
+    
+    if not request.is_json:
+        return jsonify({"error": "Content-Type must be application/json"}), 400
+        
+    data = request.get_json()
+    mood_value = data.get('mood')
+
+    if mood_value is None:
+        return jsonify({"error": "Missing 'mood' (number)"}), 400
+
+    # 1. Adjust Bandit Base Weight based on Mood
+    new_w = float(mood_value)
+    alpha = 0.0
+    new_base = [new_w, max(0.0, 1.0 - new_w - alpha), alpha]
+    bandit.set_base(new_base) # Or re-create bandit as above
+
+    # 2. Get Recommendations
+    arm_idx, theta = bandit.pick_arm()
+    recommendations = get_recommendations(theta)
+
+    return jsonify({"recommendations": recommendations})
+
+@app.route('/feedback', methods=['POST'])
+def like_or_skip_request():
+    """
+    Adjusts the global model with like or skip feedback, updates the bandit,
+    and returns the next single recommendation.
+    """
+    global per_track_penalty, accepted_indices, pending_rewards, bandit
+    
+    if not request.is_json:
+        return jsonify({"error": "Content-Type must be application/json"}), 400
+        
+    data = request.get_json()
+    feedback = data.get('likeOrSkip', '').lower()
+    
+    # Required for bandit update and history
+    # NOTE: The track that was just played/skipped should be passed by the UI.
+    track_index = data.get('trackIndex') 
+    completion_ratio = data.get('completionRatio', 0.0) # Assume 0.0 if not provided
+    skip_latency_s = data.get('skipLatencyS', 999.0) # Assume high value if not provided
+
+    if feedback not in ['like', 'skip'] or track_index is None:
+        return jsonify({"error": "Invalid 'likeOrSkip' or missing 'trackIndex'"}), 400
+
+    # 1. Calculate Reward
+    r = reward_from_event(completion_ratio, skip_latency_s)
+    
+    # 2. Update Session State (accepted/penalty)
+    if feedback == 'like':
+        accepted_indices.append(track_index)
+        # Assuming the arm that generated the *last* recommendation is the one to reward
+        # This is a simplification; a more robust system would track the arm used per song.
+        # We'll use the arm that generated the *current* pick in the next step.
+        pending_rewards.append((0, r)) # Placeholder arm_idx 0; will fix in the loop below
+    elif feedback == 'skip':
+        # Add penalty for skipped track
+        per_track_penalty[track_index] = per_track_penalty.get(track_index, 0.0) + SESSION_PENALTY
+        # For a skip, we don't update accepted_indices or the main bandit reward queue
+
+    # 3. Bandit Update (if enough rewards are pending)
+    # The actual arm index used must be recorded when the track was served.
+    # Since we can't track it easily here, we will *only* update the bandit if we 
+    # use the simplification: only update on 'like' and assume the last used arm was '0'.
+    if len(pending_rewards) >= BANDIT_UPDATE_EVERY and feedback == 'like':
+        # NOTE: This uses arm index '0' for simplicity. A better system stores the 
+        # actual arm_idx when the track was served.
+        mean_r = float(np.mean([x[1] for x in pending_rewards]))
+        bandit.update(0, mean_r) # Update with mean reward for arm 0
+        pending_rewards.clear()
+        refresh_query_from_last_N()
+
+    # 4. Get the Next Recommendation
+    arm_idx, theta = bandit.pick_arm()
+    recommendations = get_recommendations(theta, top_n=1) # Get only the top single track
+
+    if not recommendations:
+        return jsonify({"recommendations": [], "message": "No more unique candidates found."})
+
+    # NOTE: If you need to record the arm used, you should store the arm_idx here
+    # with the recommended track's index for use in the *next* feedback request.
+    
+    return jsonify({"recommendations": recommendations})
+
 if __name__ == '__main__':
     app.run(debug=True) # debug=True enables auto-reloading and debugger
 
@@ -159,7 +292,7 @@ def reward_from_event(completion_ratio: float,
                       skip_latency_s: float,
                       k_early: float = 5.0,
                       lam: float = 0.5) -> float:
-    # FRONTEND will provide inputs
+    # FRONTEND  provide inputs
     r = completion_ratio - lam * int(skip_latency_s < k_early)
     return max(-1.0, min(1.0, r))
 
@@ -217,6 +350,7 @@ def choose_next(ranked: List[Tuple[int, float, Dict[str, Any]]], on_skip: bool) 
     return ranked[0][0]
 
 def refresh_query_from_last_N():
+    global query
     last_N = accepted_indices[-HISTORY_N_FOR_QUERY:]
     if not last_N:
         return
@@ -229,6 +363,31 @@ if len(eligible) >= HISTORY_N_FOR_QUERY and query["lyr_emb"] is None:
     seeds = random.sample(eligible, HISTORY_N_FOR_QUERY)
     seed_vecs = [track_meta_by_index[i]["lyr_emb"] for i in seeds]
     query["lyr_emb"] = mean_unit(seed_vecs)
+
+# Helper for ranking using global components
+def get_recommendations(theta: np.ndarray, top_n: int = 10) -> List[Dict[str, Any]]:
+    ranked = rank_once(theta)
+    results: List[Dict[str, Any]] = []
+
+    unique_candidates = []
+    seen_ids = set(accepted_indices)
+
+    for i, score, parts in ranked:
+        if i not in seen_ids:
+            unique_candidates.append((i, score, parts))
+        if len(unique_candidates) >= top_n:
+            break
+            
+    for i, score, parts in unique_candidates:
+        track_data = track_meta_by_index[i]
+        results.append({
+            "track_id": fs.ids[i],
+            "track_name": track_data.get("name", "Unknown Track"),
+            "artist_name": track_data.get("artist", "Unknown Artist"),
+            "score": float(score) # Convert numpy float to native float for jsonify
+        })
+    return results
+
 
 # Session loop (demo)
 plays_to_simulate = 10

@@ -7,11 +7,113 @@ from feature_store import FeatureStore
 from candidate_gen import generate_candidates
 from scorer import score_track
 from bandit_adapter import SoftmaxUCBWeightBandit
-from flask import Flask
+from flask import Flask, request, jsonify
+
 app = Flask(__name__)
 @app.route('/')
 def home():
     return "Hello, this is the music recommendation system!"
+
+@app.route('/process_data', methods=['POST'])
+def process_data():
+        # 1. Accept Request Data
+    if request.is_json:
+        data = request.get_json()
+    else:
+        data = request.form # For form data
+
+    # Example: Extracting a value from the received data
+    input_value = data.get('some_key', 'default_value')
+
+    # 2. Run Code
+    # This is where your custom logic goes.
+    # For demonstration, let's just manipulate the input_value.
+    processed_value = f"Processed: {input_value.upper()}"
+
+    # 3. Return Data
+    response_data = {
+        "status": "success",
+        "original_input": input_value,
+        "processed_output": processed_value
+    }
+    return jsonify(response_data)
+
+if __name__ == '__main__':
+    app.run(debug=True) # debug=True enables auto-reloading and debugger
+
+
+
+'''@app.route('/seed', methods=['POST'])
+def seed():
+    data = request.json
+    track_ids = data.get('track_ids', [])
+    seed_from_frontend(track_ids)
+    return jsonify({"status": "ok", "message": "Seed tracks accepted"})
+
+@app.route('/next', methods=['GET'])
+def next_track():
+    arm_idx, theta = bandit.pick_arm()
+    ranked = rank_once(theta)
+    top_i, top_score, parts = ranked[0]
+    response = {
+        "track_index": fs.ids[top_i],
+        "score": float(top_score),
+        "theta": [float(x) for x in theta],
+        "components": parts
+        #"w_used": parts['w_used'],
+        #"Sbpm": parts['Sbpm'],
+        #"Slyrics": parts['Slyrics'],
+        #"Saudio": parts['Saudio']
+    }
+    return jsonify(response)
+
+@app.route('/feedback', methods=['POST'])
+def feedback():
+    data = request.json
+    track_id = data["track_id"]
+    completion_ratio = data['completion_ratio']
+    skip_latency_s = data['skip_latency_s']
+
+    # Find the internal index
+    idx = int(np.where(fs.ids == track_id)[0][0])
+    
+    r = reward_from_event(completion_ratio, skip_latency_s)
+    history.append({
+        "track_index": idx,
+        "completion_ratio": completion_ratio,
+        "skip_latency_s": skip_latency_s,
+        "reward": r,
+    })
+
+    if completion_ratio < 0.5:  # assuming skip if less than 50% completed
+        per_track_penalty[idx] = per_track_penalty.get(idx, 0.0) + SESSION_PENALTY
+    
+    else:
+        accepted_indices.append(idx)
+        pending_rewards.append((0, r))
+        message = "Track accepted"
+
+    if len(pending_rewards) >= BANDIT_UPDATE_EVERY:
+        mean_r = float(np.mean([x[1] for x in pending_rewards]))
+        bandit.update(pending_rewards[-1][0], mean_r)
+        pending_rewards.clear()
+        refresh_query_from_last_N()
+
+    return jsonify({"status": "ok", "message": message})
+
+@app.route('/slider', methods=['POST'])
+def slider():
+    data = request.json
+    new_w = data["w"]
+    a = data.get('alpha', 0.0)
+    on_slider_change(new_w, a)
+    return jsonify({"status": "ok"})
+
+from flask import render_template
+
+@app.route('/ui')
+def ui():
+    return render_template("index.html")'''
 
 # Minimal config
 RANDOM_SEED = 42

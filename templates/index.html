@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Music Recommender</title>
+</head>
+<body>
+  <h2>Music Recommender</h2>
+
+  <label>Enter 3–5 songs you like (IDs):</label>
+  <input id="seedInput" />
+  <button onclick="sendSeed()">Submit Seed Songs</button>
+
+  <hr>
+
+  <button onclick="getNext()">Get Recommendation</button>
+  <p id="rec"></p>
+
+  <button onclick="sendFeedback(0.9, 1000)">👍 Liked</button>
+  <button onclick="sendFeedback(0.1, 2)">👎 Skipped</button>
+
+  <script>
+    async function sendSeed() {
+      const ids = document.getElementById("seedInput").value
+                     .split(",").map(x => x.trim());
+      await fetch("/seed", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({track_ids: ids})
+      });
+    }
+
+    async function getNext() {
+      const res = await fetch("/next");
+      const data = await res.json();
+      window.currentTrack = data.track_id;
+      document.getElementById("rec").innerText =
+        "Recommended track: " + data.track_id;
+    }
+
+    async function sendFeedback(completion_ratio, skip_latency_s) {
+      await fetch("/feedback", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+          track_id: window.currentTrack,
+          completion_ratio,
+          skip_latency_s
+        })
+      });
+    }
+  </script>
+</body>
+</html>

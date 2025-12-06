@@ -2,7 +2,6 @@ from __future__ import annotations
 from typing import Dict, Any, List, Tuple
 import random
 import numpy as np
-
 from reward_policy import calculate_reward
 from feature_store import FeatureStore
 from candidate_gen import generate_candidates
@@ -14,7 +13,7 @@ app = Flask(__name__)
 def home():
     return "Hello, this is the music recommendation system!"
 
-# ---- Config ----
+# Config
 RANDOM_SEED = 42
 TOPK_CANDIDATES = 300
 MMR_LAMBDA = 0.7
@@ -108,7 +107,6 @@ plays_to_simulate = 10
 
 for step in range(plays_to_simulate):
     arm_idx, theta = bandit.pick_arm()
-    # Set a hint for candidate filtering
     query["lyric_pref_filter"] = (theta[1] > theta[0])
 
     ranked = rank_once(theta)

@@ -2,7 +2,6 @@ from __future__ import annotations
 import argparse, random
 from typing import List, Dict, Any, Tuple
 import numpy as np
-
 from feature_store import FeatureStore
 from candidate_gen import generate_candidates
 from scorer import score_track
@@ -11,7 +10,7 @@ from reward_policy import calculate_reward
 
 RANDOM_SEED = 42
 MMR_LAMBDA = 0.7
-TRACK_DURATION_S = 180.0  # demo default
+TRACK_DURATION_S = 180.0 
 
 def mean_unit(vecs: List[np.ndarray] | List[None]) -> np.ndarray | None:
     vecs = [v for v in vecs if v is not None]
@@ -57,8 +56,6 @@ def main():
     p.add_argument("--alpha", type=float, default=0.0)
     p.add_argument("--topk", type=int, default=10)
     p.add_argument("--k_ann", type=int, default=300)
-
-    # NEW: simulate outcome and update bandit
     p.add_argument("--simulate", choices=["none","full","skip"], default="none",
                    help="simulate a listening outcome for top-1")
     p.add_argument("--cr", type=float, default=None, help="override completion ratio [0,1]")
@@ -121,7 +118,6 @@ def main():
 
         if args.update_bandit:
             bandit.update(arm_idx, r)
-            # Pick again to see drift
             arm_idx2, theta2 = bandit.pick_arm()
             ranked2 = rank_once(fs, track_meta_by_index, query, theta2, k_ann=args.k_ann, delta_bpm=args.delta)
             print(f"[after update] theta={tuple(round(x,2) for x in theta2)}; top idx={ranked2[0][0]} score={ranked2[0][1]:.4f}")

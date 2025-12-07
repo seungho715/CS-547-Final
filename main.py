@@ -173,6 +173,27 @@ def like_or_skip_request():
     
     return jsonify({"recommendations": recommendations})
 
+@app.route('/getSongs', methods=['GET'])
+def get_songs():
+    """
+    Returns a list of selectable songs
+    """
+    global fs, track_meta_by_index
+
+    song_list = []
+    # iterate through all tracks in the feature store
+    for i in range(len(fs.ids)):
+        track_id = fs.ids[i]
+        track_data = track_meta_by_index.get(i)
+        
+        if track_data:
+            song_list.append({
+                "track_id": track_id,
+                "track_name": track_data.get("name", "Unknown Track"),
+                "artist_name": track_data.get("artist", "Unknown Artist")})
+    
+    return jsonify(song_list)
+
 if __name__ == '__main__':
     app.run(debug=True) # debug=True enables auto-reloading and debugger
 

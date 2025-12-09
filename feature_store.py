@@ -53,6 +53,21 @@ class FeatureStore:
         """Retrieves track metadata and all embeddings by track ID."""
         data = self.track_meta_map.get(track_id, {})
         
+        raw_name = data.get("track_name", None)
+        raw_artist = data.get("artists", None)
+
+        # Helper function to clean and check string values from NaNs
+        def clean_and_check(value, default_str):
+            if value is None:
+                return default_str
+            cleaned = str(value).strip()
+            return cleaned if cleaned else default_str
+        
+        data["name"] = raw_name if raw_name is not None else "Unknown Track"
+        data["artist"] = raw_artist if raw_artist is not None else "Unknown Artist"
+
+        data.pop("track_name", None)
+        data.pop("artists", None)
         # Attach the lyrics embedding vector
         data["lyr_emb"] = self.lyrics_embeddings.get(track_id)
         

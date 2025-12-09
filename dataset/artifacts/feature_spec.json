@@ -1,5 +1,5 @@
 {
-  "csv_path": "merged_dataset.csv",
+  "csv_path": "dataset/dataset.csv",
   "numeric_cols": [
     "danceability",
     "energy",

@@ -7,8 +7,8 @@ from sklearn.preprocessing import StandardScaler
 import faiss
 from charset_normalizer import from_path
 
-CSV_PATH = "merged_dataset.csv"
-OUT_DIR = Path("artifacts")
+CSV_PATH = "dataset/dataset.csv" #used to be merged_dataset.csv
+OUT_DIR = Path("dataset/artifacts") # changed from /artifacts
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 def read_csv_multilingual(path: str) -> pd.DataFrame:
@@ -90,10 +90,25 @@ with open(OUT_DIR / "feature_spec.json", "w") as f:
         indent=2,
     )
 
-meta_cols = ["track_id", "tempo", "energy", "valence", "duration_ms", "track_genre"]
-meta_cols = [c for c in meta_cols if c in df.columns]
-track_meta = df[meta_cols].to_dict(orient="records")
+meta_cols_base = ["track_id", "tempo", "energy", "valence", "duration_ms", "track_genre"]
+META_COLS_DESCRIPTIVE = ["track_name", "artists"] # added for frontend accesibility
+all_meta_cols = list(set(meta_cols_base + META_COLS_DESCRIPTIVE))
+all_meta_cols = [c for c in all_meta_cols if c in df.columns]
+meta_df = df[all_meta_cols].copy()
+
+# Clean NaN and empty strings in metadata
+def clean_nan(x):
+    if pd.isna(x):
+        return None
+    if isinstance(x, str):  # check for NaN
+        cleaned = x.strip()
+        return cleaned if cleaned else None
+    return x
+
+meta_df = meta_df.applymap(clean_nan)
+track_meta = meta_df.to_dict(orient="records")
 meta_map = {row["track_id"]: {k: row.get(k) for k in row if k != "track_id"} for row in track_meta}
+
 with open(OUT_DIR / "track_metadata.json", "w") as f:
     json.dump(meta_map, f)
 

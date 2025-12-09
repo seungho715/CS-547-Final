@@ -46,7 +46,7 @@ def create_model_request():
     Initial request to set the base mood (bandit weight) and seed the query
     with an initial song, then returns the first list of recommendations.
     """
-    global bandit, accepted_indices, query
+    global bandit, accepted_indices, query, RANDOM_SEED
     
     if not request.is_json:
         return jsonify({"error": "Content-Type must be application/json"}), 400
@@ -68,9 +68,9 @@ def create_model_request():
     new_w = float(mood_value)
     alpha = 0.0 # Assuming alpha remains 0.0
     new_base = [new_w, max(0.0, 1.0 - new_w - alpha), alpha]
-    bandit.set_base(new_base) # Use set_base if available, otherwise re-create #TODO: when creating model, getting error: AttributeError: 'SoftmaxUCBWeightBandit' object has no attribute 'set_base'
+    #bandit.set_base(new_base) # Use set_base if available, otherwise re-create #TODO: when creating model, getting error: AttributeError: 'SoftmaxUCBWeightBandit' object has no attribute 'set_base'
     # Re-create bandit if set_base is not implemented in SoftmaxUCBWeightBandit
-    # bandit = SoftmaxUCBWeightBandit(new_base, eps=0.2, rng_seed=RANDOM_SEED)
+    bandit = SoftmaxUCBWeightBandit(new_base, eps=0.2, rng_seed=RANDOM_SEED)
 
     # 3. Seed Query from initial song
     seed_from_frontend([song_id]) # seed_from_frontend is an existing function
@@ -186,7 +186,7 @@ def get_songs():
         track_id = fs.ids[i]
         track_data = track_meta_by_index.get(i)
         
-        #TODO: fix issue here where all songs respond with correct track ids but names as 'Unknown Track' and artist as 'Unknown Artist'
+        #fixed issue here where all songs respond with correct track ids but names as 'Unknown Track' and artist as 'Unknown Artist'
         if track_data:
             song_list.append({
                 "track_id": track_id,
@@ -258,19 +258,7 @@ def feedback():
 
     return jsonify({"status": "ok", "message": message})
 
-@app.route('/slider', methods=['POST'])
-def slider():
-    data = request.json
-    new_w = data["w"]
-    a = data.get('alpha', 0.0)
-    on_slider_change(new_w, a)
-    return jsonify({"status": "ok"})
-
-from flask import render_template
-
-@app.route('/ui')
-def ui():
-    return render_template("index.html")'''
+'''
 
 # Minimal config
 RANDOM_SEED = 42

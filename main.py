@@ -68,8 +68,8 @@ def create_model_request():
     new_w = float(mood_value)
     alpha = 0.0 # Assuming alpha remains 0.0
     new_base = [new_w, max(0.0, 1.0 - new_w - alpha), alpha]
-    #bandit.set_base(new_base) # Use set_base if available, otherwise re-create #TODO: when creating model, getting error: AttributeError: 'SoftmaxUCBWeightBandit' object has no attribute 'set_base'
-    # Re-create bandit if set_base is not implemented in SoftmaxUCBWeightBandit
+     #TODO: when creating model, getting error: AttributeError: 'SoftmaxUCBWeightBandit' object has no attribute 'set_base'
+    # Re-create bandit since set_base is not implemented in SoftmaxUCBWeightBandit
     bandit = SoftmaxUCBWeightBandit(new_base, eps=0.2, rng_seed=RANDOM_SEED)
 
     # 3. Seed Query from initial song
@@ -88,7 +88,7 @@ def adjust_mood_request():
     Adjusts the global bandit model's base weight (mood) and returns
     a new list of songs based on the new weights.
     """
-    global bandit
+    global bandit, RAMDOM_SEED
     
     if not request.is_json:
         return jsonify({"error": "Content-Type must be application/json"}), 400
@@ -103,7 +103,7 @@ def adjust_mood_request():
     new_w = float(mood_value)
     alpha = 0.0
     new_base = [new_w, max(0.0, 1.0 - new_w - alpha), alpha]
-    bandit.set_base(new_base) # Or re-create bandit as above #TODO: this function is giving set_base os not an attribute error (no set_base function in bandit_adapter)
+    bandit = SoftmaxUCBWeightBandit(new_base, eps=0.2, rng_seed=RANDOM_SEED) #re-create bandit #TODO: this function is giving set_base os not an attribute error (no set_base function in bandit_adapter)
 
     # 2. Get Recommendations
     arm_idx, theta = bandit.pick_arm()

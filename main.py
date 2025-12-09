@@ -103,7 +103,7 @@ def adjust_mood_request():
     new_w = float(mood_value)
     alpha = 0.0
     new_base = [new_w, max(0.0, 1.0 - new_w - alpha), alpha]
-    bandit.set_base(new_base) # Or re-create bandit as above
+    bandit.set_base(new_base) # Or re-create bandit as above #TODO: this function is giving set_base os not an attribute error (no set_base function in bandit_adapter)
 
     # 2. Get Recommendations
     arm_idx, theta = bandit.pick_arm()

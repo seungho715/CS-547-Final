@@ -114,3 +114,7 @@ class SoftmaxUCBWeightBandit:
         if not np.isfinite(z) or z <= 0:
             return np.ones_like(e) / len(e)
         return e / z
+    
+    def set_base(self, new_base: List[float]):
+        # adjusts the base weights (mood) without restarting bandit history
+        self.base = np.array(new_base, dtype=np.float32)

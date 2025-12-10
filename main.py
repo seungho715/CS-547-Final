@@ -88,7 +88,7 @@ def adjust_mood_request():
     Adjusts the global bandit model's base weight (mood) and returns
     a new list of songs based on the new weights.
     """
-    global bandit, RAMDOM_SEED
+    global bandit
     
     if not request.is_json:
         return jsonify({"error": "Content-Type must be application/json"}), 400
@@ -103,7 +103,7 @@ def adjust_mood_request():
     new_w = float(mood_value)
     alpha = 0.0
     new_base = [new_w, max(0.0, 1.0 - new_w - alpha), alpha]
-    bandit = SoftmaxUCBWeightBandit(new_base, eps=0.2, rng_seed=RANDOM_SEED) #re-create bandit #TODO: this function is giving set_base os not an attribute error (no set_base function in bandit_adapter)
+    bandit.set_base(new_base) #
 
     # 2. Get Recommendations
     arm_idx, theta = bandit.pick_arm()
@@ -127,26 +127,39 @@ def like_or_skip_request():
     
     # Required for bandit update and history
     # NOTE: The track that was just played/skipped should be passed by the UI.
-    track_index = data.get('trackIndex') 
+    track_id_str = data.get('trackIndex')
+    #track_index = data.get('trackIndex') 
     completion_ratio = data.get('completionRatio', 0.0) # Assume 0.0 if not provided
     skip_latency_s = data.get('skipLatencyS', 999.0) # Assume high value if not provided
 
-    if feedback not in ['like', 'skip'] or track_index is None:
-        return jsonify({"error": "Invalid 'likeOrSkip' or missing 'trackIndex'"}), 400
+
+    if track_id_str is None:
+        return jsonify({"error": "Missing 'trackIndex'"}), 400
+    
+    # look up the integer index from the track ID using fs.ids
+    where = np.where(fs.ids == track_id_str)[0]
+
+    if len(where) == 0:
+        return jsonify({"error": f"Track ID '{track_id_str}' not found in index."}), 400
+    
+    track_index_int = int(where[0])
+
+    if feedback not in ['like', 'skip']:
+        return jsonify({"error": "Invalid 'likeOrSkip'"}), 400
 
     # 1. Calculate Reward
     r = reward_from_event(completion_ratio, skip_latency_s)
     
     # 2. Update Session State (accepted/penalty)
     if feedback == 'like':
-        accepted_indices.append(track_index)
+        accepted_indices.append(track_index_int)
         # Assuming the arm that generated the *last* recommendation is the one to reward
         # This is a simplification; a more robust system would track the arm used per song.
         # We'll use the arm that generated the *current* pick in the next step.
         pending_rewards.append((0, r)) # Placeholder arm_idx 0; will fix in the loop below
     elif feedback == 'skip':
         # Add penalty for skipped track
-        per_track_penalty[track_index] = per_track_penalty.get(track_index, 0.0) + SESSION_PENALTY
+        per_track_penalty[track_index_int] = per_track_penalty.get(track_index_int, 0.0) + SESSION_PENALTY
         # For a skip, we don't update accepted_indices or the main bandit reward queue
 
     # 3. Bandit Update (if enough rewards are pending)
@@ -311,7 +324,7 @@ def on_slider_change(new_w: float, a: float = 0.0):
     global bandit
     new_base = [new_w, max(0.0, 1.0 - new_w - a), a]
     # TODO (FRONTEND): call this when the user moves the slider (debounced)
-    bandit = SoftmaxUCBWeightBandit(new_base, eps=0.2, rng_seed=RANDOM_SEED)
+    bandit.set_base(new_base)
 
 # seed query lyr-embedding from initial user-provided songs (ids)
 def seed_from_frontend(track_ids: List[str]):

@@ -49,20 +49,21 @@ def rank_once(fs: FeatureStore,
 def main():
     p = argparse.ArgumentParser(description="CLI demo for song recommendation + reward/bandit")
     p.add_argument("--art_dir", default="dataset/artifacts")
-    p.add_argument("--seeds", default="", help="comma-separated track_ids to seed lyrics")
+    p.add_argument("--seeds", default="", help="comma-separated track_ids to seed lyrics") #songs for recommendations to sound like
     p.add_argument("--bpm", type=float, default=128.0)
     p.add_argument("--delta", type=int, default=6)
-    p.add_argument("--w_bpm", type=float, default=0.7)
+    p.add_argument("--w_bpm", type=float, default=0.7) #input from slider
     p.add_argument("--alpha", type=float, default=0.0)
-    p.add_argument("--topk", type=int, default=10)
+    p.add_argument("--topk", type=int, default=10) #number of songs in recommendation list given back
     p.add_argument("--k_ann", type=int, default=300)
     p.add_argument("--simulate", choices=["none","full","skip"], default="none",
                    help="simulate a listening outcome for top-1")
     p.add_argument("--cr", type=float, default=None, help="override completion ratio [0,1]")
     p.add_argument("--skip_s", type=float, default=None, help="override skip latency seconds")
-    p.add_argument("--update_bandit", action="store_true", help="apply reward update then re-rank")
+    p.add_argument("--update_bandit", actigon="store_true", help="apply reward update then re-rank")
     args = p.parse_args()
 
+    ####### Startup code
     random.seed(RANDOM_SEED)
     np.random.seed(RANDOM_SEED)
 
@@ -70,7 +71,9 @@ def main():
     track_meta_by_index = {i: fs.get_track_data(fs.ids[i]) for i in range(len(fs.ids))}
 
     query: Dict[str, Any] = {"bpm": args.bpm, "delta": args.delta, "lyr_emb": None, "aud_emb": None}
+    ########
 
+    ######## pick songs request
     if args.seeds:
         seed_ids = [s.strip() for s in args.seeds.split(",") if s.strip()]
         seed_vecs = []
@@ -79,12 +82,14 @@ def main():
             if len(loc):
                 seed_vecs.append(track_meta_by_index[int(loc[0])].get("lyr_emb"))
         query["lyr_emb"] = mean_unit(seed_vecs)
+    ##########
     else:
         eligible = [i for i in range(len(fs.ids)) if track_meta_by_index[i].get("lyr_emb") is not None]
         if len(eligible) >= 3:
             seeds = random.sample(eligible, 3)
             query["lyr_emb"] = mean_unit([track_meta_by_index[i]["lyr_emb"] for i in seeds])
 
+    ####### mood input
     w_bpm, alpha = float(args.w_bpm), float(args.alpha)
     base = np.array([w_bpm, max(0.0, 1.0 - w_bpm - alpha), alpha], dtype=np.float32)
     bandit = SoftmaxUCBWeightBandit(base_weights=base.tolist(), eps=0.2, rng_seed=RANDOM_SEED)
@@ -100,7 +105,9 @@ def main():
         tid = fs.ids[i]
         w_used = tuple(round(x, 2) for x in parts["w_used"])
         print(f"{rank:<4}  {i:<8}  {tid:<24}  {s:7.4f}  {parts['Sbpm']:6.3f}  {parts['Slyrics']:8.3f}  {parts['Saudio']:7.3f}  {str(w_used):>16}")
+    #############
 
+    ############ like and skip code
     if args.simulate != "none":
         top_i, top_score, parts = ranked[0]
         if args.simulate == "full":
@@ -121,6 +128,7 @@ def main():
             arm_idx2, theta2 = bandit.pick_arm()
             ranked2 = rank_once(fs, track_meta_by_index, query, theta2, k_ann=args.k_ann, delta_bpm=args.delta)
             print(f"[after update] theta={tuple(round(x,2) for x in theta2)}; top idx={ranked2[0][0]} score={ranked2[0][1]:.4f}")
+    ###############
 
 if __name__ == "__main__":
     main()

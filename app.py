@@ -2,6 +2,7 @@ from __future__ import annotations
 import argparse, random
 from typing import List, Dict, Any, Tuple
 import numpy as np
+import hashlib
 from feature_store import FeatureStore
 from candidate_gen import generate_candidates
 from scorer import score_track
@@ -150,11 +151,14 @@ def search_songs():
         track_name = str(track_data.get("track_name", "Unknown Track"))
         track_artist = str(track_data.get("artists", "Unknown Artist"))
         if track_data: #and (search.lower() in track_name.lower()) or (search.lower() in track_artist.lower()):
-            song_list.append({
-                "track_id": track_id,
-                "track_name": track_name,
-                "artist_name": track_artist,})
-                #"length_seconds": TRACK_DURATION_S,
+            name_score = fuzz.ratio(track_name.lower(), search)
+            artist_score = fuzz.ratio(track_artist.lower(), search)
+            if name_score > 65 or artist_score > 65:
+                song_list.append({
+                    "track_id": track_id,
+                    "track_name": track_name,
+                    "artist_name": track_artist,})
+                    #"length_seconds": TRACK_DURATION_S,
     return jsonify(song_list)
 
 @app.route('/recommend', methods=['POST'])
@@ -185,8 +189,16 @@ def create_model_request():
     alpha = 0.0
 
     w_bpm, alpha = float(mood_value), float(alpha)
-    base = np.array([w_bpm, max(0.0, 1.0 - w_bpm - alpha), alpha], dtype=np.float32)
-    bandit = SoftmaxUCBWeightBandit(base_weights=base.tolist(), eps=0.2, rng_seed=RANDOM_SEED)
+
+    if song_id:
+        seed_hash = int(hashlib.sha256(song_id.encode('utf-8')).hexdigest(), 16) % (2**32) 
+        bandit_seed = seed_hash
+    else:
+        bandit_seed = RANDOM_SEED # Fallback
+
+    base = np.array([float(w_bpm), max(0.0, 1.0 - w_bpm - alpha), alpha], dtype=np.float32)
+
+    bandit = SoftmaxUCBWeightBandit(base_weights=base.tolist(), eps=0.2, rng_seed=bandit_seed)
     arm_idx, theta = bandit.pick_arm()
     arm_idx_served = arm_idx
 

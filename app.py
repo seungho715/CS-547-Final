@@ -11,6 +11,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import random
 from fuzzywuzzy import fuzz
+from collections import deque
 
 
 RANDOM_SEED = 42
@@ -22,6 +23,9 @@ SESSION_PENALTY = 0.15
 BANDIT_UPDATE_EVERY = 3
 HISTORY_N_FOR_QUERY = 3
 TRACK_DURATION_S = 180.0
+RECENT_NO_REPEAT = 5
+TOP_M = 3
+TAU = 0.05
 
 
 random.seed(RANDOM_SEED)
@@ -37,6 +41,7 @@ pending_rewards: List[Tuple[int, float]] = []
 bandit: SoftmaxUCBWeightBandit = None # Initialized in /recommend
 query: Dict[str, Any] = {"bpm": 128.0, "delta": DELTA_BPM_DEFAULT, "lyr_emb": None, "aud_emb": None}
 arm_idx_served: int = None # Stores the arm index used for the last served track
+recent_served: deque[int] = deque(maxlen=RECENT_NO_REPEAT)
 
 def mean_unit(vecs: List[np.ndarray] | List[None]) -> np.ndarray | None:
     vecs = [v for v in vecs if v is not None]
@@ -56,6 +61,18 @@ def refresh_query_from_last_N():
     vecs = [track_meta_by_index[i].get("lyr_emb") for i in last_N]
     query["lyr_emb"] = mean_unit(vecs)
 
+def pick_from_top_m(ranked: List[Tuple[int, float, Dict[str, Any]]], top_m: int = TOP_M, tau: float = TAU):
+    if not ranked:
+        raise RuntimeError("No candidates exist.")
+    k = min(top_m, len(ranked))
+    cand = ranked[:k]
+    scores = np.array([s for _, s, _ in cand], dtype=np.float32)
+    scores = scores - scores.max()
+    probs = np.exp(scores / max(1e-6, tau))
+    probs /= probs.sum()
+    idx = int(np.random.choice(k, p=probs))
+    return cand[idx]
+
 def rank_once(fs, track_meta_by_index, query, theta, k_ann, delta_bpm) -> List[Dict[str, Any]]:
     """
     Performs the ranking, applies penalties, and formats the output for JSON.
@@ -73,6 +90,12 @@ def rank_once(fs, track_meta_by_index, query, theta, k_ann, delta_bpm) -> List[D
         use_mmr=True,
         lambda_mmr=MMR_LAMBDA
     )
+
+    if theta[1] > theta[0]:
+        filtered = [(i, s) for (i, s) in hits if track_meta_by_index[i].get("lyr_emb") is not None]
+        hits = filtered or hits
+
+    hits = [(i, s) for (i, s) in hits if i not in recent_served]
     
     # 2. Score and Penalty Application
     scored: List[Tuple[int, float, Dict[str, Any]]] = []
@@ -252,8 +275,8 @@ def likeOrSkip():
     #top_i, top_score, parts = song #get song back TODO: figure out what top_i, top_score, and parts are in terms of sending back from UI
 
     if songLiked == "full":
-        completion_ratio = 0.95
-        skip_latency_s   = 999.0
+        completion_ratio = 0.90
+        skip_latency_s   = 180
         is_skipped       = False
     else: 
         completion_ratio = 0.05
@@ -295,6 +318,9 @@ def likeOrSkip():
     
     # Get the new ranking
     ranked2 = rank_once(fs, track_meta_by_index, query, theta_next, k_ann=TOPK_CANDIDATES, delta_bpm=DELTA_BPM_DEFAULT)
+
+    top_i, top_score, parts = pick_from_top_m(ranked2)
+    recent_served.append(top_i) 
 
     # Attach the new arm index to the top recommendation
     if ranked2:

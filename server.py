@@ -224,13 +224,13 @@ def likeOrSkip():
 
     data = request.get_json()
     songLiked = data.get("liked")
-    song_data = data.get("song")
+    track_id_str = data.get("song")
 
-    if not song_data:
+    if not track_id_str:
         return jsonify({"error": "Missing 'song' data from previous recommendation"}), 400
     
         # Assuming the client passed a dictionary containing the necessary backend IDs
-    track_id_str = song_data.get('track_id')
+    #track_id_str = song_data.get('track_id')
     arm_idx = arm_idx_served
         
     if track_id_str is None or arm_idx is None:

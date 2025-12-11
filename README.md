@@ -24,7 +24,7 @@ The system operates in a five-stage loop, driven by user interaction and implici
 
 * Dynamic Scoring: The score_track function computes the final rank based on the bandit's weights θ and three similarity components:
 
-Score =wbpm . Sbpm + wlyrics . Slyrics  + waudio . Saudio
+Score = wbpm . Sbpm + wlyrics . Slyrics  + waudio . Saudio
 
 Weights are adaptively normalized if data is missing.
 * Implicit Feedback & Reward: After a track is played, an implicit reward is calculated based on session metrics (e.g., play time, skip latency). The reward policy penalizes early skips (e.g., skipping before 30 seconds).
@@ -41,7 +41,7 @@ Weights are adaptively normalized if data is missing.
 * sentence-transformers
 * flask (for the web service)
 ### Running Instructions
-* clone from new-flask-server branch
+* Clone from new-flask-server branch
 * run command: pip install -r requirements.txt in directory
 * ensure ngrok is installed from [here](https://ngrok.com/download/windows)
 * create venv via command: python3 -m venv venv then run venv via command: venv\Scripts\activate

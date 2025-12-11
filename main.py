@@ -8,6 +8,7 @@ from candidate_gen import generate_candidates
 from scorer import score_track
 from bandit_adapter import SoftmaxUCBWeightBandit
 from flask import Flask
+from collections import deque
 app = Flask(__name__)
 @app.route('/')
 def home():
@@ -22,7 +23,10 @@ EPS_GREEDY_ON_SKIP = 0.15
 SESSION_PENALTY = 0.15
 BANDIT_UPDATE_EVERY = 3
 HISTORY_N_FOR_QUERY = 3
-TRACK_DURATION_S = 180.0 
+TRACK_DURATION_S = 180.0
+RECENT_NO_REPEAT = 5
+TOP_M = 3
+TAU = 0.05
 
 random.seed(RANDOM_SEED)
 np.random.seed(RANDOM_SEED)
@@ -31,6 +35,7 @@ per_track_penalty: Dict[int, float] = {}
 history: List[Dict[str, Any]] = []
 accepted_indices: List[int] = []
 pending_rewards: List[Tuple[int, float]] = []
+recent_served: deque[int] = deque(maxlen=RECENT_NO_REPEAT)
 
 fs = FeatureStore("dataset/artifacts")
 track_meta_by_index = {i: fs.get_track_data(fs.ids[i]) for i in range(len(fs.ids))}
@@ -67,6 +72,18 @@ def refresh_query_from_last_N():
     vecs = [track_meta_by_index[i].get("lyr_emb") for i in last_N]
     query["lyr_emb"] = mean_unit(vecs)
 
+def pick_from_top_m(ranked: List[Tuple[int, float, Dict[str, Any]]], top_m: int = TOP_M, tau: float = TAU):
+    if not ranked:
+        raise RuntimeError("No candidates exist.")
+    k = min(top_m, len(ranked))
+    cand = ranked[:k]
+    scores = np.array([s for _, s, _ in cand], dtype=np.float32)
+    scores = scores - scores.max()
+    probs = np.exp(scores / max(1e-6, tau))
+    probs /= probs.sum()
+    idx = int(np.random.choice(k, p=probs))
+    return cand[idx]
+
 def rank_once(theta: np.ndarray) -> List[Tuple[int, float, Dict[str, Any]]]:
     hits = generate_candidates(
         fs,
@@ -77,10 +94,12 @@ def rank_once(theta: np.ndarray) -> List[Tuple[int, float, Dict[str, Any]]]:
         use_mmr=True,
         lambda_mmr=MMR_LAMBDA
     )
-    # Prefer tracks with lyrics if lyrics weight > BPM
+
     if theta[1] > theta[0]:
         filtered = [(i, s) for (i, s) in hits if track_meta_by_index[i].get("lyr_emb") is not None]
         hits = filtered or hits
+
+    hits = [(i, s) for (i, s) in hits if i not in recent_served]
 
     scored: List[Tuple[int, float, Dict[str, Any]]] = []
     for i, _ in hits:
@@ -110,7 +129,8 @@ for step in range(plays_to_simulate):
     query["lyric_pref_filter"] = (theta[1] > theta[0])
 
     ranked = rank_once(theta)
-    top_i, top_score, parts = ranked[0]
+    top_i, top_score, parts = pick_from_top_m(ranked)
+    recent_served.append(top_i) 
     print(f"[serve] idx={top_i} score={top_score:.4f} w_used={tuple(round(x,2) for x in parts['w_used'])} "
           f"Sbpm={parts['Sbpm']:.3f} Slyrics={parts['Slyrics']:.3f} Saudio={parts['Saudio']:.3f}")
     

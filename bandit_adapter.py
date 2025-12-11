@@ -42,7 +42,14 @@ class SoftmaxUCBWeightBandit:
         self.means = np.zeros(n, dtype=np.float32)
         self.ema   = np.zeros(n, dtype=np.float32) 
         self.t     = 0 
-        self.theta = self.base.copy()                 
+        self.theta = self.base.copy()  
+
+    def set_base(self, new_base):
+        self.base = np.array(new_base, dtype=np.float32)
+        assert self.base.shape == (3,)
+        assert 0.0 <= self.base[0] <= 1.0
+        assert 0.0 <= self.base[2] <= 1.0
+        assert 0.0 <= np.sum(self.base) <= 1.0 + 1e-6        
 
     def pick_arm(self):
         self.t += 1

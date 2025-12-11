@@ -91,7 +91,7 @@ def rank_once(fs, track_meta_by_index, query, theta, k_ann, delta_bpm) -> List[D
             "track_index": int(top_i),
             "track_id": fs.ids[top_i],
             "score": float(top_score),
-            "track_name": track_data.get("name"),
+            "track_name": track_data.get("track_name"),
             "artist_name": track_data.get("artists"),
             "parts": {k: float(v) for k, v in parts.items() if k != 'w_used'},
             "theta_used": [round(float(x), 4) for x in theta]
@@ -174,12 +174,13 @@ def create_model_request():
 
     formatted_ranked = []
     for song in ranked[:10]:
+        print(song)
         formatted_ranked.append({
                 "track_id": song['track_id'],
                 "track_name": song['track_name'],
-                "artists": song['artists']})
+                "artist_name": song['artist_name']})
 
-    return jsonify(ranked)
+    return jsonify(formatted_ranked)
 
 @app.route('/adjust_mood', methods=['POST'])
 def adjust_mood_request():
@@ -200,14 +201,22 @@ def adjust_mood_request():
 
     w_bpm, alpha = float(mood_value), float(alpha)
     new_base = np.array([w_bpm, max(0.0, 1.0 - w_bpm - alpha), alpha], dtype=np.float32)
-    bandit.set_base(new_base) #TODO: may need a setter for base
+    bandit.set_base(new_base.tolist()) #TODO: may need a setter for base
 
     # Get Recommendations
     arm_idx, theta = bandit.pick_arm()
     arm_idx_served = arm_idx
     ranked = rank_once(fs, track_meta_by_index, query, theta, k_ann=TOPK_CANDIDATES, delta_bpm=DELTA_BPM_DEFAULT)
 
-    return jsonify({"recommendations": ranked})
+    formatted_ranked = []
+    for song in ranked[:10]:
+        print(song)
+        formatted_ranked.append({
+                "track_id": song['track_id'],
+                "track_name": song['track_name'],
+                "artist_name": song['artist_name']})
+
+    return jsonify(formatted_ranked)
 
 @app.route("/likeOrSkip", methods=['POST']) #TODO: just this needs to be finished
 def likeOrSkip():
@@ -221,17 +230,18 @@ def likeOrSkip():
 
     data = request.get_json()
     songLiked = data.get("liked")
-    song_data = data.get("song")
+    track_id_str = data.get("song")
 
-    if not song_data:
-        return jsonify({"error": "Missing 'song' data from previous recommendation"}), 400
-    
-        # Assuming the client passed a dictionary containing the necessary backend IDs
-    track_id_str = song_data.get('track_id')
     arm_idx = arm_idx_served
-        
+
     if track_id_str is None or arm_idx is None:
         return jsonify({"error": "Song data missing 'track_id' or 'arm_idx'"}), 400
+
+    #if not song_data:
+        #return jsonify({"error": "Missing 'song' data from previous recommendation"}), 400
+    
+        # Assuming the client passed a dictionary containing the necessary backend IDs
+    #track_id_str = song_data.get('track_id')
         
         # Look up the internal integer index
     where = np.where(fs.ids == track_id_str)[0]
@@ -290,9 +300,17 @@ def likeOrSkip():
     # Attach the new arm index to the top recommendation
     if ranked2:
         ranked2[0]['arm_idx'] = int(arm_idx_next)
+    
+    formatted_ranked = []
+    for song in ranked2[:10]:
+        print(song)
+        formatted_ranked.append({
+                "track_id": song['track_id'],
+                "track_name": song['track_name'],
+                "artist_name": song['artist_name']})
 
     return jsonify({
-        "recommendations": ranked2,
+        "recommendations": formatted_ranked,
         "bandit_updated": bandit_updated,
         "reward_received": r
     })

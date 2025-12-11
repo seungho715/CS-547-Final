@@ -29,12 +29,12 @@ FAISS Index: The core retrieval index is built using a faiss.IndexFlatIP (Inner 
 Weighted Features: Features like tempo (1.5) and energy (1.2) are explicitly weighted up during the initial vectorization for the ANN search to reflect their importance.
 Lyric Embeddings: Lyrical content is processed using a pre-trained multilingual Sentence Transformer (paraphrase-multilingual-MiniLM-L12-v2) to generate semantic embeddings for similarity calculation.
 ## Getting Started
-###Prerequisites
+### Prerequisites
 Python (3.8+)
 Standard ML/data science libraries (numpy, pandas, scikit-learn, faiss, joblib)
 sentence-transformers
 flask (for the web service)
-###Running the Command Line Demo (demo.py)
+### Running the Command Line Demo (demo.py)
 
 
 

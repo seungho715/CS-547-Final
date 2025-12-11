@@ -67,7 +67,8 @@ def pick_from_top_m(ranked: List[Tuple[int, float, Dict[str, Any]]], top_m: int 
         raise RuntimeError("No candidates exist.")
     k = min(top_m, len(ranked))
     cand = ranked[:k]
-    scores = np.array([s for _, s, _ in cand], dtype=np.float32)
+    print(cand)
+    scores = np.array([s["score"] for s in cand], dtype=np.float32)
     scores = scores - scores.max()
     probs = np.exp(scores / max(1e-6, tau))
     probs /= probs.sum()
@@ -331,7 +332,7 @@ def likeOrSkip():
     # Get the new ranking
     ranked2 = rank_once(fs, track_meta_by_index, query, theta_next, k_ann=TOPK_CANDIDATES, delta_bpm=DELTA_BPM_DEFAULT)
 
-    top_i, top_score, parts = pick_from_top_m(ranked2)
+    top_i = pick_from_top_m(ranked2)
     recent_served.append(top_i) 
 
     # Attach the new arm index to the top recommendation

@@ -14,6 +14,7 @@ Unlike traditional systems that rely heavily on collaborative filtering or gener
 The system operates in a five-stage loop, driven by user interaction and implicit feedback.
 
 * Bandit Arm Selection: The SoftmaxUCBWeightBandit selects a weight vector θ = [wbpm, wlyrics, waudio] for the session, constrained to remain near the user's explicit slider preference.
+
 * Candidate Generation:
 1. A query is run against the FAISS Index (built on 15 weighted numeric features like tempo=1.5, energy=1.2) for high-recall retrieval.
 

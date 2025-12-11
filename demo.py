@@ -63,7 +63,7 @@ def main():
     p.add_argument("--update_bandit", actigon="store_true", help="apply reward update then re-rank")
     args = p.parse_args()
 
-    ####### Startup code
+    ####### Startup code (done)
     random.seed(RANDOM_SEED)
     np.random.seed(RANDOM_SEED)
 
@@ -96,6 +96,7 @@ def main():
     arm_idx, theta = bandit.pick_arm()
 
     ranked = rank_once(fs, track_meta_by_index, query, theta, k_ann=args.k_ann, delta_bpm=args.delta)
+    ############
     print(f"\nSlider base=[{base[0]:.2f} BPM, {base[1]:.2f} Lyrics, {base[2]:.2f} Audio]  →  theta={tuple(round(x,2) for x in theta)}")
     print(f"Query: BPM={query['bpm']}, delta={query['delta']}, lyrics_emb={'yes' if query['lyr_emb'] is not None else 'no'}")
     print("-"*102)
@@ -105,7 +106,6 @@ def main():
         tid = fs.ids[i]
         w_used = tuple(round(x, 2) for x in parts["w_used"])
         print(f"{rank:<4}  {i:<8}  {tid:<24}  {s:7.4f}  {parts['Sbpm']:6.3f}  {parts['Slyrics']:8.3f}  {parts['Saudio']:7.3f}  {str(w_used):>16}")
-    #############
 
     ############ like and skip code
     if args.simulate != "none":

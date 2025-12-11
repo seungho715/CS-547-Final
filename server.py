@@ -116,23 +116,32 @@ def search_songs():
         
     data = request.get_json()
     search = data.get('search', '').lower()
-    #global fs, track_meta_by_index
 
     song_list = []
-    # iterate through all tracks in the feature store
+    
     for i in range(len(fs.ids)):
         track_id = fs.ids[i]
         track_data = track_meta_by_index.get(i)
-        
-        #fixed issue here where all songs respond with correct track ids but names as 'Unknown Track' and artist as 'Unknown Artist'
+                
         track_name = track_data.get("name", "Unknown Track")
         track_artist = track_data.get("artist", "Unknown Artist")
-        if track_data and ((fuzz.ratio(track_name.lower(), search.lower()) >= 65) or (fuzz.ratio(track_artist.lower(), search.lower()) >= 65)):
+        
+        # Retrieve trackDuration and handle potential NaNs
+        trackDuration = track_data.get("duration_ms", 180000)
+
+        if trackDuration is None or isinstance(trackDuration, str) and trackDuration.lower() == "nan" or np.isnan(trackDuration):
+            trackDuration = 180000
+            
+        if track_data and ((fuzz.ratio(track_name.lower(), search.lower()) >= 35) or (fuzz.ratio(track_artist.lower(), search.lower()) >= 35)):
+            
+            length_seconds = float(trackDuration) / 1000
+            
             song_list.append({
                 "track_id": track_id,
                 "track_name": track_name,
                 "artist_name": track_artist,
-                "length_seconds": track_data.get("duration_ms", "") / 1000})
+                "time_s": length_seconds
+            })
     
     return jsonify(song_list)
 
@@ -173,7 +182,7 @@ def create_model_request():
     if ranked:
         ranked[0]['arm_idx'] = int(arm_idx)
 
-    return jsonify(ranked)
+    return jsonify(ranked) #TODO: for each song in ranked, return all with just the following fields: "track_id", "track_name", "artist_name", "time_s"
 
 @app.route('/adjust_mood', methods=['POST'])
 def adjust_mood_request():
@@ -201,7 +210,7 @@ def adjust_mood_request():
     arm_idx_served = arm_idx
     ranked = rank_once(fs, track_meta_by_index, query, theta, k_ann=TOPK_CANDIDATES, delta_bpm=DELTA_BPM_DEFAULT)
 
-    return jsonify({"recommendations": ranked})
+    return jsonify({"recommendations": ranked}) #TODO: for each song in ranked, return all with just the following fields: "track_id", "track_name", "artist_name", "time_s"
 
 @app.route("/likeOrSkip", methods=['POST']) #TODO: just this needs to be finished
 def likeOrSkip():
@@ -286,9 +295,9 @@ def likeOrSkip():
         ranked2[0]['arm_idx'] = int(arm_idx_next)
 
     return jsonify({
-        "recommendations": ranked2,
-        "bandit_updated": bandit_updated,
-        "reward_received": r
+        "recommendations": ranked2, #TODO: for each song in ranked, return all with just the following fields: "track_id", "track_name", "artist_name", "time_s"
+        "bandit_updated": bandit_updated, #TODO: dont need this returned, maybe replace with previous bandit
+        "reward_received": r #TODO: dont need this returned to frontend, not sure where to put this
     })
 
 def main():

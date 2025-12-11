@@ -113,20 +113,25 @@ for step in range(plays_to_simulate):
     top_i, top_score, parts = ranked[0]
     print(f"[serve] idx={top_i} score={top_score:.4f} w_used={tuple(round(x,2) for x in parts['w_used'])} "
           f"Sbpm={parts['Sbpm']:.3f} Slyrics={parts['Slyrics']:.3f} Saudio={parts['Saudio']:.3f}")
+    
+    # added simulated track_duration
+    meta = track_meta_by_index[top_i]
+    duration = meta.get("duration_ms")
+    track_duration_s = float(duration) / 1000.0 if duration is not None else 180.0
 
     simulated_skip = (theta[1] > theta[0]) and (parts["Slyrics"] < 0.40)
     if simulated_skip:
         completion_ratio = 0.05
-        skip_latency_s = 3.0
-        is_skipped = True
-        play_time_s = completion_ratio * TRACK_DURATION_S 
+        skip_latency_s   = 3.0
+        is_skipped       = True
     else:
         completion_ratio = 0.90
-        skip_latency_s = 999.0
-        is_skipped = False
-        play_time_s = completion_ratio * TRACK_DURATION_S 
+        skip_latency_s   = track_duration_s
+        is_skipped       = False
 
-    r = calculate_reward(TRACK_DURATION_S, play_time_s, is_skipped, skip_latency_s) 
+    play_time_s = completion_ratio * track_duration_s
+    
+    r = calculate_reward(track_duration_s, play_time_s, is_skipped, skip_latency_s)
 
     history.append({
         "track_index": int(top_i),

@@ -123,7 +123,6 @@ def search_songs():
     for i in range(len(fs.ids)):
         track_id = fs.ids[i]
         track_data = track_meta_by_index.get(i)
-        
         #fixed issue here where all songs respond with correct track ids but names as 'Unknown Track' and artist as 'Unknown Artist'
         track_name = str(track_data.get("track_name", "Unknown Track"))
         track_artist = str(track_data.get("artists", "Unknown Artist"))
@@ -131,7 +130,7 @@ def search_songs():
             song_list.append({
                 "track_id": track_id,
                 "track_name": track_name,
-                "artists": track_artist,})
+                "artist_name": track_artist,})
                 #"length_seconds": TRACK_DURATION_S,
     return jsonify(song_list)
 

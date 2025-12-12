@@ -1,3 +1,9 @@
+# Prerequisites
+* Python (3.8+)
+* Standard ML/data science libraries (numpy, pandas, scikit-learn, faiss, joblib)
+* sentence-transformers
+* flask (for the web service)
+
 # Run Instructions
 * clone from [new-flask-server branch](https://github.com/seungho715/CS-547-Final/tree/new-flask-server) in this repository
 * run command: pip install -r requirements.txt in directory
@@ -45,19 +51,3 @@ Weights are adaptively normalized if data is missing.
 * FAISS Index: The core retrieval index is built using a faiss.IndexFlatIP (Inner Product, for cosine similarity on L2-normalized vectors) over 15 scaled audio features.
 * Weighted Features: Features like tempo (1.5) and energy (1.2) are explicitly weighted up during the initial vectorization for the ANN search to reflect their importance.
 * Lyric Embeddings: Lyrical content is processed using a pre-trained multilingual Sentence Transformer (paraphrase-multilingual-MiniLM-L12-v2) to generate semantic embeddings for similarity calculation.
-## Getting Started
-### Prerequisites
-* Python (3.8+)
-* Standard ML/data science libraries (numpy, pandas, scikit-learn, faiss, joblib)
-* sentence-transformers
-* flask (for the web service)
-### Running Instructions
-* Clone from new-flask-server branch
-* run command: pip install -r requirements.txt in directory
-* ensure ngrok is installed from [here](https://ngrok.com/download/windows)
-* create venv via command: python3 -m venv venv then run venv via command: venv\Scripts\activate
-* run server in venv via command: flask --app app.py run 
-* once running server in venv, run ngrok then run command: ngrok http 5000
-* access frontend for site [here](https://cs547-frontend-git-vercel-react-a1823d-edwardfantasias-projects.vercel.app/?_vercel_share=p6j9AqGMNUy6kSd0iSlmwYEyXmBZcfev)
-* must then put in forwarding address into the top input box then click save in order to run this application
-* now you can enjoy listening to the recommended music!

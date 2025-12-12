@@ -1,5 +1,5 @@
 # Run Instructions
-* clone from new-flask-server branch in this repository
+* clone from [new-flask-server branch](https://github.com/seungho715/CS-547-Final/tree/new-flask-server) in this repository
 * run command: pip install -r requirements.txt in directory
 * ensure ngrok is installed from [here](https://ngrok.com/download/windows)
 * create venv via command: python3 -m venv venv then run venv via command: venv\Scripts\activate
